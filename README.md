@@ -1,1 +1,1 @@
-"# ComicDownloader" 
+# ShuhuiDownloader
