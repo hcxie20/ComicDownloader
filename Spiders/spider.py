@@ -40,7 +40,29 @@ class spider(object):
         pass
 
     def get_url(self, url):
+        print("Getting url...")
+        self.browser.get(url)
+
+        title = self.browser.title
+        print(title)
+
+        if not os.path.exists("./download/"+title):
+            # not finished
+            if not os.path.exists("./download/"+title+"_ongoing"):
+                os.mkdir("./download/"+title+"_ongoing")
+
+            urls, filenames = self.get_img()
+
+            self.download(urls, filenames, "./download/"+title+"_ongoing")
+            os.rename("./download/"+title+"_ongoing", "./download/"+title)
+        else:
+            print("  File exists")
+
         pass
+
+    def get_img(self):
+        pass
+        return [], []
 
     def img_tag(self):
         pass
@@ -49,14 +71,21 @@ class spider(object):
         print("Start downloading...")
         l = len(urls)
 
-        opener = urllib.request.build_opener()
-        opener.addheaders = [('User-agent', 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/535.1 (KHTML, like Gecko) Chrome/14.0.835.163 Safari/535.1')]
-        urllib.request.install_opener(opener)
+        # opener = urllib.request.build_opener()
+        # opener.addheaders = [('User-agent', 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/535.1 (KHTML, like Gecko) Chrome/14.0.835.163 Safari/535.1')]
+        # urllib.request.install_opener(opener)
 
+        # for i in range(l):
+        #     print("  page {0:03d}/{1}".format(i + 1, l))
+        #     urllib.request.urlretrieve(urls[i], path + "/" + filenames[i])
+        # pass
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) ''Chrome/51.0.2704.63 Safari/537.36'}
         for i in range(l):
-            print("  page {0:03d}/{1}".format(i + 1, l))        
-            urllib.request.urlretrieve(urls[i], path + "/" + filenames[i])
-        pass
+            req = urllib.request.Request(url = urls[i], headers=headers)
+            img = urllib.request.urlopen(req).read()
+            with open(path + "/" + filenames[i], "wb") as f:
+                f.write(img)
+                f.close()
 
     @staticmethod
     def mkdir(dir):
