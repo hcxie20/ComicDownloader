@@ -1,5 +1,6 @@
 import time
 import urllib
+import requests
 from bs4 import BeautifulSoup
 import lxml
 from selenium import webdriver
@@ -25,7 +26,7 @@ class spider(object):
         if disableGPU == True:
             self.chrome_option.add_argument("--disable-gpu")
 
-        self.chrome_option.add_argument('user-agent=Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/535.1 (KHTML, like Gecko) Chrome/14.0.835.163 Safari/535.1')
+        self.chrome_option.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36')
 
         self.browser = None
 
@@ -67,22 +68,16 @@ class spider(object):
     def img_tag(self):
         pass
 
-    def download(self, urls, filenames, path):
+    def download(self, urls, filenames, path, headers=None):
         print("Start downloading...")
         l = len(urls)
-
-        # opener = urllib.request.build_opener()
-        # opener.addheaders = [('User-agent', 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/535.1 (KHTML, like Gecko) Chrome/14.0.835.163 Safari/535.1')]
-        # urllib.request.install_opener(opener)
-
-        # for i in range(l):
-        #     print("  page {0:03d}/{1}".format(i + 1, l))
-        #     urllib.request.urlretrieve(urls[i], path + "/" + filenames[i])
-        # pass
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) ''Chrome/51.0.2704.63 Safari/537.36'}
+        if headers == None:
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36'}
         for i in range(l):
+            print("  Img NO. {0:03}".format(i+1))
             req = urllib.request.Request(url = urls[i], headers=headers)
             img = urllib.request.urlopen(req).read()
+            # img = requests.get(urls[i], headers=headers)
             with open(path + "/" + filenames[i], "wb") as f:
                 f.write(img)
                 f.close()

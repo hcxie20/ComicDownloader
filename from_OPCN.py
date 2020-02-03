@@ -1,4 +1,4 @@
-from Spiders.xinxinmhspider import xinxin_spider as spider
+from Spiders.OPCNspider import OPCNspider as spider
 import re
 import os
 
@@ -12,14 +12,12 @@ if __name__ == "__main__":
 
     while 1:
         url = input("Url (exit to exit):")
-        # url = "http://www.mangabz.com/38bz/"
 
         if url == "exit":
             break
 
-        if re.search(r"https://www.177mh.net/", url):
+        if re.search(r"https://one-piece.cn/", url):
             a.get_url(url)
         else:
             print("Not a valid url (https://www.177mh.net/)")
             pass
-    
