@@ -14,6 +14,7 @@ import threading
 import queue
 from concurrent.futures import ThreadPoolExecutor
 import glob
+import pickle
 
 
 class Downloader(threading.Thread):
@@ -62,6 +63,9 @@ class Downloader(threading.Thread):
 
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36'}
 
+        if os.path.exists(path + '/' + name):
+            return
+
         for i in range(retry):
             try:
                 req = urllib.request.Request(url = url, headers=headers)
@@ -80,6 +84,23 @@ class Downloader(threading.Thread):
             f.close()
 
         return True
+
+    def save_fail_ls(self):
+        tmp = []
+        while not self._fail.empty():
+            tmp.append(self._fail.get())
+
+        tmp.reverse()
+
+        with open('./fail.txt', 'wb') as f:
+            pickle.dump(tmp, f)
+
+    def load_fail_ls(self):
+        with open('./fail.txt', 'rb') as f:
+            ls = pickle.load(f)
+
+        for item in ls:
+            self._queue.put(item)
 
 class spider(object):
     def __init__(self, headless=True, dtLoadPicture=True, disableGPU=True):
@@ -343,16 +364,67 @@ class ShouManhuaSpider(spider):
 
             self.add_to_download((img_url, './download/' + title + '/', filename))
 
+class CocoSpider(spider):
+    def start_browser(self):
+        print("cocomanhua.com spider v 0.5")
+        self.boot_up_browser()
+
+    def get_url(self, url):
+        print("Getting url...")
+        self.browser.get(url)
+
+        title = self.browser.title
+        print(title)
+
+        if not os.path.exists('./download/' + title):
+            os.mkdir('./download/' + title)
+
+        ls = self.browser.find_elements_by_css_selector('div.mh_comicpic')
+
+        pages = len(ls)
+        tmp = ls[0].find_element_by_css_selector('img').get_attribute("src")
+
+        num_digit = len(re.findall(r'[0-9]+', tmp)[-1])
+        anchor = self.findall(tmp, re.findall(r'[0-9]+', tmp)[-1])[-1]
+
+        url_base = tmp[:anchor]
+        _format = tmp[anchor + num_digit:]
+
+        print("Totally {0} pages, processing...".format(pages))
+
+        if len(glob.glob(pathname='./download/' + title + '/*')) == pages:
+            print('  File Exists')
+
+        for i in range(pages):
+            print("  Page {0}".format(i + 1))
+            img_url = url_base + str(i + 1).zfill(num_digit) + _format
+            filename = str(i + 1).zfill(num_digit) + _format
+
+            self.add_to_download((img_url, './download/' + title + '/', filename))
+
+    @staticmethod
+    def findall(string, s):
+        ret = []
+        index = 0
+        while True:
+            index = string.find(s, index)
+            if index != -1:
+                ret.append(index)
+                index += len(s)
+            else:
+                break
+        return tuple(ret)
+
 
 if __name__ == "__main__":
     # a = mangabzspider(headless=False, dtLoadPicture=True)
     # url = "http://www.mangabz.com/m66436/"
     # url = "http://www.mangabz.com/m45177/"
     # a.get_url(url)
-    # b = CocoSpider(headless=False, dtLoadPicture=True)
-    # url = "https://www.cocomanhua.com/10285/1/998.html"
-    b = ShouManhuaSpider(headless=False, dtLoadPicture=True)
-    url = "http://www.shoumanhua.com/maoxian/14711/455289.html"
+    b = CocoSpider(headless=False, dtLoadPicture=True)
+    url = "https://www.cocomanhua.com/10285/1/998.html"
+    # b = ShouManhuaSpider(headless=False, dtLoadPicture=True)
+    # url = "http://www.shoumanhua.com/maoxian/14711/455289.html"
     b.get_url(url)
     b.exit()
     pass

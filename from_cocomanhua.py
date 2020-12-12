@@ -1,4 +1,4 @@
-from Spiders.spider import ShouManhuaSpider as spider
+from Spiders.spider import CocoSpider as spider
 import re
 import os
 
@@ -11,7 +11,8 @@ if __name__ == "__main__":
 
     while 1:
         url = input("Url (exit to exit):")
-        # url = "http://www.shoumanhua.com/maoxian/14711/"
+        # url = "https://www.cocomanhua.com/10285/"
+        # url = 'https://www.cocomanhua.com/14311/'
 
         if url == "exit":
             break
@@ -22,7 +23,7 @@ if __name__ == "__main__":
         else:
             a.browser.get(url)
 
-            urls = a.browser.find_elements_by_css_selector('#mh-chapter-list-ol-0 > li > a')[:193]
+            urls = a.browser.find_elements_by_css_selector('div.all_data_list > ul > li > a')
 
             print("Totally {0} comics".format(len(urls)))
             for i in range(len(urls)):
