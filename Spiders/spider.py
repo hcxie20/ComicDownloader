@@ -130,7 +130,7 @@ class pufeispider(spider):
 
             self.download(urls, filenames, "./download/"+title+"_ongoing")
             os.rename("./download/"+title+"_ongoing", "./download/"+title)
-            
+
             pass
         else:
             print("  File exists")
@@ -158,7 +158,7 @@ class mangabzspider(spider):
             urls = [None] * pages
             filenames = [None] * pages
             print("Totally {0} pages, processing...".format(pages))
-            
+
             url1 = url[:-1]
             for i in range(1, pages+1):
                 print("  Page {0}".format(i))
@@ -215,14 +215,14 @@ class tencentcomicspider(spider):
             os.mkdir("./download/"+name)
 
         # print(urls)
-        
+
         print("  Totally {0} images".format(len(urls)))
         for i in range(len(urls)):
             print("    Img {0}/{1}".format(i+1, len(urls)))
             file_name = str(i+1)
             if len(file_name) == 1:
                 file_name = "0" + file_name
-            file_name = file_name + ".jpg" 
+            file_name = file_name + ".jpg"
             if not os.path.exists("./download/"+name+"/"+file_name):
                 print("      Downloading...")
                 urllib.request.urlretrieve(urls[i], "./download/"+name+"/"+file_name)
@@ -234,12 +234,88 @@ class tencentcomicspider(spider):
     def img_tag(tag):
         return tag.name == "img" and tag.has_attr("data-h") and not tag.has_attr("class")
 
+class ShouManhuaSpider(spider):
+    def start_browser(self):
+        print("cocomanhua.com spider v 0.5")
+        self.boot_up_browser()
+
+    def get_url(self, url):
+        print("Getting url...")
+        self.browser.get(url)
+
+        title = self.browser.title
+        print(title)
+
+        if not os.path.exists("./download/"+title):
+            # not finished
+            if not os.path.exists("./download/"+title+"_ongoing"):
+                os.mkdir("./download/"+title+"_ongoing")
+
+            a = self.browser.find_element_by_css_selector('body > div.w996.title.pr > span').text
+            pages = int(re.search(r'(/)([1-9][0-9]*)', a).group(0)[1:])
+            urls = [None] * pages
+            filenames = [None] * pages
+            print("Totally {0} pages, processing...".format(pages))
+
+            for i in range(pages):
+                print("  Page {0}".format(i + 1))
+                self.browser.get(url+"?p="+str(i + 1))
+                urls[i] = self.browser.find_element_by_id("qTcms_pic").get_attribute("src")
+                _format = re.search(r'\.[a-z]+', url.split('/')[-1]).group()[1:]
+                filenames[i] = "{0:03d}".format(i) + _format
+                pass
+
+            self.download(urls, filenames, "./download/"+title+"_ongoing")
+            os.rename("./download/"+title+"_ongoing", "./download/"+title)
+        else:
+            print("  File exists")
+
+        pass
+
+class CocoSpider(spider):
+    def start_browser(self):
+        print("cocomanhua.com spider v 0.5")
+        self.boot_up_browser()
+
+    def get_url(self, url):
+        print("Getting url...")
+        self.browser.get(url)
+
+        title = self.browser.title
+        print(title)
+
+        if not os.path.exists("./download/"+title):
+            # not finished
+            if not os.path.exists("./download/"+title+"_ongoing"):
+                os.mkdir("./download/"+title+"_ongoing")
+
+            a = self.browser.find_element_by_css_selector('body > div.w996.title.pr > span').text
+            pages = int(re.search(r'(/)([1-9][0-9]*)', a).group(0)[1:])
+            urls = [None] * pages
+            filenames = [None] * pages
+            print("Totally {0} pages, processing...".format(pages))
+
+            for i in range(pages):
+                print("  Page {0}".format(i + 1))
+                self.browser.get(url+"?p="+str(i + 1))
+                urls[i] = self.browser.find_element_by_id("qTcms_pic").get_attribute("src")
+                _format = re.search(r'\.[a-z]+', url.split('/')[-1]).group()[1:]
+                filenames[i] = "{0:03d}".format(i) + _format
+                pass
+
+            self.download(urls, filenames, "./download/"+title+"_ongoing")
+            os.rename("./download/"+title+"_ongoing", "./download/"+title)
+        else:
+            print("  File exists")
+
+        pass
+
 if __name__ == "__main__":
     # a = mangabzspider(headless=False, dtLoadPicture=True)
     # url = "http://www.mangabz.com/m66436/"
     # url = "http://www.mangabz.com/m45177/"
     # a.get_url(url)
-    b = pufeispider(headless=False, dtLoadPicture=True)
-    url = "http://m.pufei.net/manhua/351/117476.html"
+    b = CocoSpider(headless=False, dtLoadPicture=True)
+    url = "https://www.cocomanhua.com/10285/1/998.html"
     b.get_url(url)
     pass
