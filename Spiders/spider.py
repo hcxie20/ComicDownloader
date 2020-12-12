@@ -10,12 +10,83 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 import os
 import re
+import threading
+import queue
+from concurrent.futures import ThreadPoolExecutor
+import glob
 
+
+class Downloader(threading.Thread):
+    def __init__(self, max_workers=5):
+        threading.Thread.__init__(self)
+
+        self._queue = queue.Queue()
+        self.pool = ThreadPoolExecutor(max_workers=max_workers)
+        self._max_workers = max_workers
+        self._current_workers = 0
+
+        self._fail = queue.Queue()
+        self._shutdown = False
+
+    def shutdown(self):
+        self._shutdown = True
+
+    def add(self, args):
+        self._queue.put(args)
+
+    def run(self):
+        while not self._shutdown:
+            if self._queue.empty() or self._current_workers == self._max_workers:
+                time.sleep(0.05)
+                continue
+
+            self.start_download()
+
+        while not self._queue.empty():
+            self.start_download()
+
+        self.pool.shutdown(wait=True)
+
+    def start_download(self):
+        self._current_workers += 1
+        args = self._queue.get()
+        task = self.pool.submit(self.download, args)
+        task.add_done_callback(self.download_end)
+
+    def download_end(self, future):
+        self._current_workers -= 1
+
+    def download(self, args, retry=5):
+        url, path, name = args[0], args[1], args[2]
+        print('Start download {0}'.format(path + name))
+
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36'}
+
+        for i in range(retry):
+            try:
+                req = urllib.request.Request(url = url, headers=headers)
+                img = urllib.request.urlopen(req).read()
+
+            except:
+                if i == retry - 1:
+                    # out of tries
+                    self._fail.put(args)
+                    return
+
+                continue
+
+        with open(path + "/" + name, "wb") as f:
+            f.write(img)
+            f.close()
+
+        return True
 
 class spider(object):
     def __init__(self, headless=True, dtLoadPicture=True, disableGPU=True):
-        self.chrome_option = webdriver.ChromeOptions()
+        self.downloader = Downloader()
+        self.downloader.start()
 
+        self.chrome_option = webdriver.ChromeOptions()
         self.mkdir("./download")
 
         if dtLoadPicture == True:
@@ -61,12 +132,19 @@ class spider(object):
 
         pass
 
+    def exit(self):
+        self.downloader.shutdown()
+        self.browser.quit()
+
     def get_img(self):
         pass
         return [], []
 
     def img_tag(self):
         pass
+
+    def add_to_download(self, args):
+        self.downloader.add(args)
 
     def download(self, urls, filenames, path, headers=None):
         print("Start downloading...")
@@ -236,7 +314,7 @@ class tencentcomicspider(spider):
 
 class ShouManhuaSpider(spider):
     def start_browser(self):
-        print("cocomanhua.com spider v 0.5")
+        print("shoumanhua.com spider v 0.5")
         self.boot_up_browser()
 
     def get_url(self, url):
@@ -246,76 +324,35 @@ class ShouManhuaSpider(spider):
         title = self.browser.title
         print(title)
 
-        if not os.path.exists("./download/"+title):
-            # not finished
-            if not os.path.exists("./download/"+title+"_ongoing"):
-                os.mkdir("./download/"+title+"_ongoing")
+        if not os.path.exists('./download/' + title):
+            os.mkdir('./download/' + title)
 
-            a = self.browser.find_element_by_css_selector('body > div.w996.title.pr > span').text
-            pages = int(re.search(r'(/)([1-9][0-9]*)', a).group(0)[1:])
-            urls = [None] * pages
-            filenames = [None] * pages
-            print("Totally {0} pages, processing...".format(pages))
+        a = self.browser.find_element_by_css_selector('body > div.w996.title.pr > span').text
+        pages = int(re.search(r'(/)([1-9][0-9]*)', a).group(0)[1:])
+        print("Totally {0} pages, processing...".format(pages))
 
-            for i in range(pages):
-                print("  Page {0}".format(i + 1))
-                self.browser.get(url+"?p="+str(i + 1))
-                urls[i] = self.browser.find_element_by_id("qTcms_pic").get_attribute("src")
-                _format = re.search(r'\.[a-z]+', url.split('/')[-1]).group()[1:]
-                filenames[i] = "{0:03d}".format(i) + _format
-                pass
+        if len(glob.glob(pathname='./download/' + title + '/*')) == pages:
+            print('  File Exists')
 
-            self.download(urls, filenames, "./download/"+title+"_ongoing")
-            os.rename("./download/"+title+"_ongoing", "./download/"+title)
-        else:
-            print("  File exists")
+        for i in range(pages):
+            print("  Page {0}".format(i + 1))
+            self.browser.get(url+"?p="+str(i + 1))
+            img_url = self.browser.find_element_by_id("qTcms_pic").get_attribute("src")
+            _format = re.search(r'\.[a-z]+', img_url.split('/')[-1]).group()
+            filename = "{0:03d}".format(i + 1) + _format
 
-        pass
+            self.add_to_download((img_url, './download/' + title + '/', filename))
 
-class CocoSpider(spider):
-    def start_browser(self):
-        print("cocomanhua.com spider v 0.5")
-        self.boot_up_browser()
-
-    def get_url(self, url):
-        print("Getting url...")
-        self.browser.get(url)
-
-        title = self.browser.title
-        print(title)
-
-        if not os.path.exists("./download/"+title):
-            # not finished
-            if not os.path.exists("./download/"+title+"_ongoing"):
-                os.mkdir("./download/"+title+"_ongoing")
-
-            a = self.browser.find_element_by_css_selector('body > div.w996.title.pr > span').text
-            pages = int(re.search(r'(/)([1-9][0-9]*)', a).group(0)[1:])
-            urls = [None] * pages
-            filenames = [None] * pages
-            print("Totally {0} pages, processing...".format(pages))
-
-            for i in range(pages):
-                print("  Page {0}".format(i + 1))
-                self.browser.get(url+"?p="+str(i + 1))
-                urls[i] = self.browser.find_element_by_id("qTcms_pic").get_attribute("src")
-                _format = re.search(r'\.[a-z]+', url.split('/')[-1]).group()[1:]
-                filenames[i] = "{0:03d}".format(i) + _format
-                pass
-
-            self.download(urls, filenames, "./download/"+title+"_ongoing")
-            os.rename("./download/"+title+"_ongoing", "./download/"+title)
-        else:
-            print("  File exists")
-
-        pass
 
 if __name__ == "__main__":
     # a = mangabzspider(headless=False, dtLoadPicture=True)
     # url = "http://www.mangabz.com/m66436/"
     # url = "http://www.mangabz.com/m45177/"
     # a.get_url(url)
-    b = CocoSpider(headless=False, dtLoadPicture=True)
-    url = "https://www.cocomanhua.com/10285/1/998.html"
+    # b = CocoSpider(headless=False, dtLoadPicture=True)
+    # url = "https://www.cocomanhua.com/10285/1/998.html"
+    b = ShouManhuaSpider(headless=False, dtLoadPicture=True)
+    url = "http://www.shoumanhua.com/maoxian/14711/455289.html"
     b.get_url(url)
+    b.exit()
     pass
